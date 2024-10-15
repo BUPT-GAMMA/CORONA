@@ -9,9 +9,9 @@ import re
 import json
 from sentence_transformers import SentenceTransformer
 # client = OpenAI()
-api_key = "sk-PMfg4ZRMDbDqLoS4C6Ff636eA2A64878B09f85B0726c82B1"
-url = 'https://api.bianxie.ai/v1/chat/completions'
-file_path = '/home/cjz/netflix'
+api_key = ""
+url = ''
+file_path = ''
 g_model_type = "gpt-3.5-turbo-0613" 
 # # "claude", "chatglm-6b", "hambuger-13b", "baichuan-7B", "gpt-4", "gpt-4-0613"
 s_model = SentenceTransformer("all-MiniLM-L6-v2")
