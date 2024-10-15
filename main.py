@@ -15,8 +15,8 @@ MAX_DISTANCE = 5
 
 class Trainer(object):
     def __init__(self):
-        self.data_path = ''
-        self.dataset = '/netflix'
+        self.data_path = '.'
+        self.dataset = '/netflix_data'
         self.top_k = 100
         self.epoch = 7
         self.non_node = 0
