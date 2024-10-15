@@ -6,7 +6,7 @@ import json
 from collections import deque, defaultdict
 import sys
 
-data_path = '/home/cjz'
+data_path = ''
 dataset = '/netflix'
 topk = 10
 
