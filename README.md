@@ -21,3 +21,6 @@ Once the environment is set up and the dataset is prepared, you can run the proj
 ```bash
 python main.py
 ```
+## Pseudo code
+We present the pseudo code for model training in Algorithm 1.
+![Pseudo Code](/Pseudocode.png)
