@@ -1,3 +1,6 @@
+## News
+We are excited to share that the corresponding paper for this project has been accepted into the **SIGIR 2025 Proceedings**🎉🎉!
+
 ## Setup
 
 To get started, follow these steps:
