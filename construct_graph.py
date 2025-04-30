@@ -7,14 +7,14 @@ import os
 import json
 import random
 
-data_path = '/home/cjz'
+data_path = ''
 dataset = '/netflix'
 os.environ['CUDA_VISIBLE_DEVICES'] = '2'
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 top_k = 500
 
 def construct_ui_graph():
-    retrieved_nodes = torch.load(f'/home/cjz/Graph_RA_Rec/model_states/retrieved_nodes_{top_k}_all.pth')
+    retrieved_nodes = torch.load(f'/Graph_RA_Rec/model_states/retrieved_nodes_{top_k}_all.pth')
     ui_graph = ui_graph_raw = pickle.load(open(data_path + dataset + '/train_mat','rb'))
     n_users = ui_graph.shape[0]
     n_items = ui_graph.shape[1]
@@ -50,7 +50,7 @@ def construct_ui_graph():
     print('done')
 
 def construct_user_graph():
-    retrieved_nodes = torch.load(f'/home/cjz/Graph_RA_Rec/model_states/retrieved_nodes_{top_k}_all.pth', map_location='cpu')
+    retrieved_nodes = torch.load(f'/Graph_RA_Rec/model_states/retrieved_nodes_{top_k}_all.pth', map_location='cpu')
     ui_graph = pickle.load(open(data_path + dataset + '/train_mat','rb'))
     n_users = ui_graph.shape[0]
     n_items = ui_graph.shape[1]
