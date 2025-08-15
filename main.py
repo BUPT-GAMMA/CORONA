@@ -15,8 +15,8 @@ MAX_DISTANCE = 5
 
 class Trainer(object):
     def __init__(self):
-        self.data_path = '.'
-        self.dataset = '/netflix_data'
+        self.data_path = os.environ.get('DATA_DIR', '.')
+        self.dataset = os.environ.get('DATASET_DIR', '/netflix_data')
         self.top_k = 100
         self.epoch = 7
         self.non_node = 0
@@ -219,9 +219,9 @@ class Trainer(object):
         onehop_count = 0
         with torch.no_grad():
             recall = 0
-            if os.path.exists(self.data_path + '/netflix/val_for_RA.pkl'):
+            if os.path.exists(self.data_path + self.dataset + '/val_for_RA.pkl'):
                 print('Evaluating...')
-                self.val_data = pickle.load(open(self.data_path + '/netflix/val_for_RA.pkl', 'rb'))
+                self.val_data = pickle.load(open(self.data_path + self.dataset + '/val_for_RA.pkl', 'rb'))
                 for uid, (source_node_idx, label_node_idx, distance_tensor) in tqdm(self.val_data.items()):
                     distance_tensor = distance_tensor.cuda()
                     loss, top_k_indices = self.model(self.user_init_embedding, source_node_idx, distance_tensor, label_node_idx)
@@ -247,7 +247,7 @@ class Trainer(object):
                     if label_node_idx in top_k_indices:
                         recall += 1
                     total_val_loss += loss.item()
-                pickle.dump(processed_val_data, open(self.data_path + '/netflix/val_for_RA.pkl', 'wb'))
+                pickle.dump(processed_val_data, open(self.data_path + self.dataset + '/val_for_RA.pkl', 'wb'))
         average_val_loss = total_val_loss / len(self.val_data)
         average_recall = recall / len(self.val_data)
         print(f'One-hop count: {onehop_count}')
@@ -262,9 +262,9 @@ class Trainer(object):
         
         with torch.no_grad():
             recall = 0
-            if os.path.exists(self.data_path + '/netflix/test_for_RA.pkl'):
+            if os.path.exists(self.data_path + self.dataset + '/test_for_RA.pkl'):
                 print('Testing...')
-                self.test_data = pickle.load(open(self.data_path + '/netflix/test_for_RA.pkl', 'rb'))
+                self.test_data = pickle.load(open(self.data_path + self.dataset + '/test_for_RA.pkl', 'rb'))
                 for uid, (source_node_idx, label_node_idx, distance_tensor) in tqdm(self.test_data.items()):
                     distance_tensor = distance_tensor.cuda()
                     loss, top_k_indices = self.model(self.user_init_embedding, source_node_idx, distance_tensor, label_node_idx)
@@ -287,8 +287,8 @@ class Trainer(object):
                     all_top_k_indices.append(top_k_indices)
                     if label_node_idx in top_k_indices:
                         recall += 1
-                pickle.dump(processed_test_data, open(self.data_path + '/netflix/test_for_RA.pkl', 'wb'))
-            self.train_data = pickle.load(open(self.data_path + '/netflix/train_for_RA.pkl', 'rb'))
+                pickle.dump(processed_test_data, open(self.data_path + self.dataset + '/test_for_RA.pkl', 'wb'))
+            self.train_data = pickle.load(open(self.data_path + self.dataset + '/train_for_RA.pkl', 'rb'))
             for uid, (source_node_idx, label_node_idx, distance_tensor) in tqdm(self.train_data.items()):
                 distance_tensor = distance_tensor.cuda()
                 loss, top_k_indices = self.model(self.user_init_embedding, source_node_idx, distance_tensor, label_node_idx)
@@ -308,9 +308,9 @@ class Trainer(object):
             total_loss = 0.0  # 累积损失
             all_top_k_indices = []  
             train_recall = 0
-            if os.path.exists(self.data_path + '/netflix/train_for_RA.pkl'):
+            if os.path.exists(self.data_path + self.dataset + '/train_for_RA.pkl'):
                 print('Training...')
-                self.train_data = pickle.load(open(self.data_path + '/netflix/train_for_RA.pkl', 'rb'))
+                self.train_data = pickle.load(open(self.data_path + self.dataset + '/train_for_RA.pkl', 'rb'))
                 for uid, (source_node_idx, label_node_idx, distance_tensor) in tqdm(self.train_data.items()):
                     distance_tensor = distance_tensor.cuda()
                     self.optimizer.zero_grad()
@@ -347,7 +347,7 @@ class Trainer(object):
                         train_recall += 1
                     t3 = time()
                     # print(f'Data generate: {t2 - t1}, Model: {t3 - t2}.')
-                pickle.dump(processed_train_data, open(self.data_path + '/netflix/train_for_RA.pkl', 'wb'))
+                pickle.dump(processed_train_data, open(self.data_path + self.dataset + '/train_for_RA.pkl', 'wb'))
             average_loss = total_loss / len(self.train_data)
             average_recall = train_recall / len(self.train_data)
             if self.val_data is not None:
@@ -360,6 +360,7 @@ class Trainer(object):
                 print(f"Epoch [{epoch+1}/{self.epoch}], Trian Loss: {average_loss:.4f}, Train Recall: {average_recall}.")
         if self.val_data is not None and best_model_state is not None:
             self.model.load_state_dict(best_model_state)
+        os.makedirs(os.path.join(self.data_path, 'Graph_RA_Rec', 'model_states'), exist_ok=True)
         torch.save(best_model_state, self.data_path + f'/Graph_RA_Rec/model_states/best_model_state_{self.top_k}.pth')
         return average_loss, average_recall
 
@@ -370,10 +371,11 @@ def set_seed(seed):
     torch.cuda.manual_seed_all(seed) 
 
 if __name__ == '__main__':
-    os.environ["CUDA_VISIBLE_DEVICES"] = '2'
+    os.environ["CUDA_VISIBLE_DEVICES"] = os.environ.get("CUDA_VISIBLE_DEVICES", '0')
     set_seed(3)
     trainer = Trainer()
     trainer.train()
     test_loss, test_recall, retrieved_nodes = trainer.test()
+    os.makedirs(os.path.join(trainer.data_path, 'Graph_RA_Rec', 'model_states'), exist_ok=True)
     torch.save(retrieved_nodes, trainer.data_path + f'/Graph_RA_Rec/model_states/retrieved_nodes_{trainer.top_k}_all.pth')
     print(f"Test Loss: {test_loss}, Test Recall: {test_recall}")
