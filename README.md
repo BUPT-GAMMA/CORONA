@@ -78,9 +78,6 @@ We follow LLMRec for Netflix/MovieLens splits and RLMRec for Amazon-Book. Textua
 - GPU selection via `CUDA_VISIBLE_DEVICES`
 - Cached tensors: `*_for_RA.pkl` are stored in `${DATA_DIR}${DATASET_DIR}`
 
-## Pseudocode
-![Pseudo Code](/Pseudocode.png)
-
 ## Citation
 If you find this repository helpful, please cite:
 ```
