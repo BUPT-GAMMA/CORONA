@@ -1,0 +1,12 @@
+numpy>=1.24.0
+scipy>=1.10.0
+pandas>=1.5.0
+tqdm>=4.65.0
+requests>=2.31.0
+sentence-transformers>=2.2.2
+# Torch stack (CPU by default). For CUDA wheels, see https://pytorch.org/get-started/locally/
+torch==1.13.1
+torchvision==0.14.1
+torchaudio==0.13.1
+# Torch Geometric core (install matching wheels per https://pytorch-geometric.readthedocs.io/)
+torch-geometric>=2.3.0

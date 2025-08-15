@@ -10,36 +10,34 @@ class NodeRetrieverModel(nn.Module):
         self.top_k = top_k
 
     def forward(self, node_embeddings, source_node_idx, distance_tensor, label_node_idx):
+        distances = distance_tensor.long()
         distance_indices = torch.clamp(distances - 1, min=0, max=2)
-        distance_encodings = self.distance_encoding[distance_indices]
+        distance_encodings = self.distance_encoding(distance_indices)
+        all_node_embeddings = node_embeddings
         all_node_embeddings_with_distance = torch.cat((all_node_embeddings, distance_encodings), dim=1)
         transformed_embeddings = self.linear(all_node_embeddings_with_distance)
-        source_embedding = node_embeddings[source_node_idx]  
-        all_node_embeddings = node_embeddings 
-        transformed_embeddings = self.linear(all_node_embeddings)  # (N, embedding_dim)
+        source_embedding = node_embeddings[source_node_idx]
         
-        cosine_sim = F.cosine_similarity(source_embedding.unsqueeze(0), transformed_embeddings, dim=1)  # (N,)
+        cosine_sim = F.cosine_similarity(source_embedding.unsqueeze(0), transformed_embeddings, dim=1)
 
-        distances = distance_tensor  # (N,)
-        # distances = torch.tensor(distances)
+        distances = distance_tensor
         distances = distances.to(cosine_sim.device)
-        valid_indices = (distances <= 2).nonzero(as_tuple=True)[0]  
-        valid_cosine_sim = cosine_sim[valid_indices]  
-        valid_distances = distances[valid_indices]  
+        valid_indices = (distances <= 2).nonzero(as_tuple=True)[0]
+        valid_cosine_sim = cosine_sim[valid_indices]
+        valid_distances = distances[valid_indices]
 
         distance_weights = torch.ones_like(valid_distances, dtype=torch.float32, device=cosine_sim.device)
         distance_weights[valid_distances == 1] *= 1.5
         distance_weights[valid_distances == 2] *= 2.0
-        weighted_similarity = valid_cosine_sim * distance_weights  # (valid_nodes,)
+        weighted_similarity = valid_cosine_sim * distance_weights
         if len(weighted_similarity) < self.top_k:
-            # print(f'{len(valid_indices)} neighbors in total, select them all.')
             top_k_indices = torch.arange(len(valid_indices), device=valid_indices.device)
         else:
-            _, top_k_indices = torch.topk(weighted_similarity, self.top_k)  # top_k_indices: (top_k,)
-        top_k_embeddings = transformed_embeddings[valid_indices[top_k_indices]]  # (top_k, embedding_dim)
+            _, top_k_indices = torch.topk(weighted_similarity, self.top_k)
+        top_k_embeddings = transformed_embeddings[valid_indices[top_k_indices]]
 
-        label_embedding = node_embeddings[label_node_idx]  # (embedding_dim,)
-        query_embedding = node_embeddings[source_node_idx]  # (embedding_dim,)
+        label_embedding = node_embeddings[label_node_idx]
+        query_embedding = node_embeddings[source_node_idx]
 
         loss = self.compute_loss(query_embedding, label_node_idx, transformed_embeddings)
 
@@ -49,10 +47,10 @@ class NodeRetrieverModel(nn.Module):
         return loss, final_top_k
 
     def compute_loss(self, EQ_1, label_node_idx, transformed_embeddings):
-        label_embeddings = transformed_embeddings[label_node_idx]  # (|N(v)|, embedding_dim)
-        numerator = torch.exp(torch.matmul(label_embeddings, EQ_1))  # (|N(v)|, )
-        denominator = torch.exp(torch.matmul(transformed_embeddings, EQ_1)).sum()  # (scalar)
-        loss = -torch.log(numerator / denominator).sum()  
+        label_embeddings = transformed_embeddings[label_node_idx]
+        numerator = torch.exp(torch.matmul(label_embeddings, EQ_1))
+        denominator = torch.exp(torch.matmul(transformed_embeddings, EQ_1)).sum()
+        loss = -torch.log(numerator / denominator).sum()
         return loss
 
     

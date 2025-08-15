@@ -7,14 +7,15 @@ import os
 import json
 import random
 
-data_path = ''
-dataset = '/netflix'
-os.environ['CUDA_VISIBLE_DEVICES'] = '2'
+data_path = os.environ.get('DATA_DIR', '')
+dataset = os.environ.get('DATASET_DIR', '/netflix_data')
+os.environ['CUDA_VISIBLE_DEVICES'] = os.environ.get('CUDA_VISIBLE_DEVICES', '0')
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-top_k = 500
+top_k = int(os.environ.get('TOP_K', '500'))
+dataset_name = os.path.basename(dataset).lstrip('/')
 
 def construct_ui_graph():
-    retrieved_nodes = torch.load(f'/Graph_RA_Rec/model_states/retrieved_nodes_{top_k}_all.pth')
+    retrieved_nodes = torch.load(f'{data_path}/Graph_RA_Rec/model_states/retrieved_nodes_{top_k}_all.pth')
     ui_graph = ui_graph_raw = pickle.load(open(data_path + dataset + '/train_mat','rb'))
     n_users = ui_graph.shape[0]
     n_items = ui_graph.shape[1]
@@ -43,14 +44,18 @@ def construct_ui_graph():
         data['item'].num_nodes = n_items
         edge_index = torch.tensor([user_ids, item_ids], dtype=torch.long)
         data['user', 'interacts', 'item'].edge_index = edge_index
-        torch.save(data, f'{data_path}/Graph_RA_Rec/netflix/graphs/{index}.pt')
+        graphs_dir = f'{data_path}/Graph_RA_Rec/{dataset_name}/graphs'
+        os.makedirs(graphs_dir, exist_ok=True)
+        torch.save(data, f'{graphs_dir}/{index}.pt')
     avg_items_length = total_items_length / len(retrieved_nodes)
     # pickle.dump(ui_graph_list, open(data_path + '/Graph_RA_Rec/retrieved_graph/ui_retrieved_68_3878.pkl', 'wb'))
-    pickle.dump(items_connected_dict, open(data_path + f'/Graph_RA_Rec/retrieved_graph/items_retrieved_{top_k}.pkl', 'wb'))
+    retrieved_dir = f'{data_path}/Graph_RA_Rec/{dataset_name}/retrieved_graph'
+    os.makedirs(retrieved_dir, exist_ok=True)
+    pickle.dump(items_connected_dict, open(f'{retrieved_dir}/items_retrieved_{top_k}.pkl', 'wb'))
     print('done')
 
 def construct_user_graph():
-    retrieved_nodes = torch.load(f'/Graph_RA_Rec/model_states/retrieved_nodes_{top_k}_all.pth', map_location='cpu')
+    retrieved_nodes = torch.load(f'{data_path}/Graph_RA_Rec/model_states/retrieved_nodes_{top_k}_all.pth', map_location='cpu')
     ui_graph = pickle.load(open(data_path + dataset + '/train_mat','rb'))
     n_users = ui_graph.shape[0]
     n_items = ui_graph.shape[1]
@@ -77,8 +82,10 @@ def construct_user_graph():
         data.num_nodes = len(retrieved_nodes_np)
         node_idx_to_user_id = {idx: uid for idx, uid in enumerate(retrieved_nodes_np)}
         all_retrieved_map[index] = node_idx_to_user_id
-        torch.save(data, f'{data_path}/Graph_RA_Rec/netflix/user_graphs_batch_{top_k}/{index}.pt')
-    pickle.dump(all_retrieved_map, open(f'{data_path}/Graph_RA_Rec/netflix/user_graphs_batch_{top_k}/all_retrieved_map.pkl', 'wb'))
+        user_graph_dir = f'{data_path}/Graph_RA_Rec/{dataset_name}/user_graphs_batch_{top_k}'
+        os.makedirs(user_graph_dir, exist_ok=True)
+        torch.save(data, f'{user_graph_dir}/{index}.pt')
+    pickle.dump(all_retrieved_map, open(f'{data_path}/Graph_RA_Rec/{dataset_name}/user_graphs_batch_{top_k}/all_retrieved_map.pkl', 'wb'))
     print('done')
 
 construct_ui_graph()

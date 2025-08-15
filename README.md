@@ -1,61 +1,103 @@
+# CORONA: A Coarse-to-Fine Framework for Graph-based Recommendation with Large Language Models
+
 ## News
-We are excited to share that the corresponding paper for this project has been accepted into the **SIGIR 2025 Proceedings**🎉🎉!
+- Our paper has been accepted to **SIGIR 2025** 🎉
 
-## Setup
+## Introduction
+CORONA is a coarse-to-fine recommendation framework that retrieves user-neighborhoods on user–item bipartite graphs and leverages LLM-augmented user profiles as side information. The coarse stage retrieves candidate users via graph-aware similarity with distance priors; the fine stage constructs compact subgraphs for downstream training/evaluation.
 
-To get started, follow these steps:
+## Repository Structure
+- `main.py`: training/validation/testing for user retriever
+- `model.py`: retriever model with distance-aware embedding transformation
+- `construct_graph.py`: build per-user subgraphs from retrieved neighbors
+- `chat_api_query.py`: LLM-based user profiling and embedding generation
+- `load.py`: utilities for dataset loading and diagnostics
+- `netflix_data/`: example dataset placeholder (train/val/test splits and sparse matrices)
 
-### 1. Install Required Packages
-First, install all necessary dependencies by using the `requirements.txt` file:
-
+## Quick Start
+### 1) Environment
+- Python 3.9+
+- Install minimal deps:
 ```bash
-pip install -r requirements.txt
+pip install -r requirements-min.txt
+```
+For CUDA/Torch Geometric GPU wheels, follow the official guides.
+
+### 2) Configure
+Create `.env` (or copy `.env.example`) to specify paths/devices:
+```bash
+cp .env.example .env
+```
+Key variables:
+- `DATA_DIR`: project root for data and outputs (default `.`)
+- `DATASET_DIR`: dataset subdir (default `/netflix_data`)
+- `CUDA_VISIBLE_DEVICES`: GPU id (default `0`)
+- `TOP_K`: retrieved users per query (default `500`)
+- `OPENAI_*`: LLM credentials for profiling
+
+### 3) Prepare Dataset
+We experiment on Netflix, MovieLens, and Amazon-Book. Provide only textual side information for all methods.
+- Place processed files under `${DATA_DIR}${DATASET_DIR}`:
+  - `train.json`, `val.json`, `test.json` (uid -> item list)
+  - `train_mat` (scipy sparse user–item CSR, pickled)
+  - `augmented_user_init_embedding_final` (numpy array pickled, dim = user embedding)
+  - Optional: `netflix_image_text/item_attribute.csv` for profiling
+- For Netflix node features, we recommend following LLMRec instructions.
+
+### 4) LLM-based User Profiling (Optional)
+If you need to generate `augmented_user_init_embedding_final`:
+```bash
+make augment
+```
+This reads `train_mat`/`test.json` and writes `${AUGMENT_FILE_PATH}/augmented_user_init_embedding_final`.
+
+### 5) Train and Evaluate
+```bash
+make train
+```
+After training, the best model and retrieved nodes are saved to `${DATA_DIR}/Graph_RA_Rec/model_states/`.
+For testing independently:
+```bash
+make test
 ```
 
-### 2. Prepare Netflix Dataset Node Features
-Download the Netflix dataset node features and place them in the `netflix_data` directory. We recommend following the instructions provided by [LLMRec](https://github.com/HKUDS/LLMRec) to obtain the node features.
-
-### 3. Run the Main Program
-Once the environment is set up and the dataset is prepared, you can run the project by executing:
-
+### 6) Construct Subgraphs
 ```bash
-python main.py
+make graphs
 ```
+Produces user/item subgraphs under `${DATA_DIR}/Graph_RA_Rec/${basename(DATASET_DIR)}/`.
 
-## Detailed Datasets Info
+## Datasets Details
+- Netflix (KDD Cup 2007)
+- MovieLens-10M (ACM TiiS 2015)
+- Amazon-Book (EMNLP 2019)
+We follow LLMRec for Netflix/MovieLens splits and RLMRec for Amazon-Book. Textual info is encoded by Sentence-BERT.
 
-We perform experiments on three publicly available datasets, *i.e.*, [Netflix](https://www.kaggle.com/datasets/netflix-inc/netflix-prize-data), [MovieLens](https://files.grouplens.org/datasets/movielens/ml-10m-README.html), and [Amazon-book](https://cseweb.ucsd.edu/~jmcauley/datasets/amazon/links.html).  
-To ensure a fair comparison, we provide only textual information as side information for all methods.  
-For baselines that cannot directly utilize textual information, such as LightGCN [[He et al., 2020]](#ref-he2020lightgcn), we use text encodings as node features.  
-We follow existing work to split the train, validation, and test sets. For the Netflix and MovieLens datasets, we use the same split as in LLMRec [[Wei et al., 2024]](#ref-wei2024llmrec); for the Amazon-book dataset, we follow the split from RLMRec [[Ren et al., 2024]](#ref-ren2024representation).
+## Reproducibility Notes
+- Determinism: `set_seed(3)` in `main.py`
+- GPU selection via `CUDA_VISIBLE_DEVICES`
+- Cached tensors: `*_for_RA.pkl` are stored in `${DATA_DIR}${DATASET_DIR}`
 
-- **Netflix dataset** [[Bennett et al., 2007]](#ref-bennett2007netflix)  
-  The Netflix dataset is sourced from the Kaggle website.  
-  We derive the interaction graph `G` and user interaction history `L_U` from the users' viewing history.  
-  For items, we combine the movie title, year, genre, and categories as textual information, denoted as `T_V`, while for users, we use age, gender, favorite directors, country, and language as textual information, denoted as `P_U`.  
-  Additionally, we use BERT [[Reimers and Gurevych, 2019]](#ref-reimers2019sentence) to encode the textual information of users and items, obtaining user features `F_U` and item features `M_V`, respectively.
+## Pseudocode
+![Pseudo Code](/Pseudocode.png)
 
-- **MovieLens dataset** [[Harper and Konstan, 2015]](#ref-harper2015movielens)  
-  The MovieLens dataset is sourced from ML-10M.  
-  We obtain the interaction graph `G` and user interaction history `L_U` from the users' viewing history.  
-  The side information, including movie title, year, and genre, is combined as the item textual feature `T_V`, while user age, gender, country, and language are combined as the user textual feature `P_U`.  
-  Additionally, we encode these textual information using BERT [[Reimers and Gurevych, 2019]](#ref-reimers2019sentence) as features `F_U` and `M_V`.
-
-- **Amazon-book dataset** [[Ni et al., 2019]](#ref-ni2019justifying)  
-  The Amazon-book dataset contains book review records from 2000 to 2014.  
-  We treat each review as a user-item interaction and derive the interaction graph `G` and user interaction history `L_U` from the records.  
-  We use the book title, year, and categories as the textual information for items `T_V`, and the user's review content as the textual information for users `P_U`.  
-  These information are encoded by BERT [[Reimers and Gurevych, 2019]](#ref-reimers2019sentence) to obtain features `F_U` and `M_V`.
+## Citation
+If you find this repository helpful, please cite:
+```
+@inproceedings{corona2025,
+  title={CORONA: A Coarse-to-Fine Framework for Graph-based Recommendation with Large Language Models},
+  booktitle={Proceedings of the ACM SIGIR Conference on Research and Development in Information Retrieval},
+  year={2025}
+}
+```
 
 ## References
-- <a name="ref-he2020lightgcn"></a>He, Xiangnan, et al. "LightGCN: Simplifying and Powering Graph Convolution Network for Recommendation." SIGIR 2020.
-- <a name="ref-wei2024llmrec"></a>Wei, Xinyao, et al. "LLMRec: Towards Open-Ended Recommendation with Large Language Models." arXiv 2024.
-- <a name="ref-ren2024representation"></a>Ren, Yujia, et al. "Representation Learning with Preference Graphs for Open-World Recommendation." WWW 2024.
-- <a name="ref-bennett2007netflix"></a>Bennett, James, and Stan Lanning. "The Netflix Prize." KDD Cup 2007.
-- <a name="ref-harper2015movielens"></a>Harper, F. Maxwell, and Joseph A. Konstan. "The MovieLens Datasets: History and Context." ACM TiiS 2015.
-- <a name="ref-ni2019justifying"></a>Ni, Junnan, et al. "Justifying Recommendations using Distantly-Labeled Reviews and Fine-Grained Aspects." EMNLP 2019.
-- <a name="ref-reimers2019sentence"></a>Reimers, Nils, and Iryna Gurevych. "Sentence-BERT: Sentence Embeddings using Siamese BERT-Networks." EMNLP/IJCNLP 2019.
+- He et al., LightGCN, SIGIR 2020
+- Wei et al., LLMRec, arXiv 2024
+- Ren et al., RLMRec, WWW 2024
+- Bennett and Lanning, The Netflix Prize, KDD Cup 2007
+- Harper and Konstan, MovieLens, ACM TiiS 2015
+- Reimers and Gurevych, Sentence-BERT, EMNLP/IJCNLP 2019
 
-## Pseudo code
-We present the pseudo code for model training in Algorithm 1.
-![Pseudo Code](/Pseudocode.png)
+## License
+This code is released for research purposes. See repository license if provided.

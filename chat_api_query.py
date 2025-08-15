@@ -9,10 +9,10 @@ import re
 import json
 from sentence_transformers import SentenceTransformer
 # client = OpenAI()
-api_key = ""
-url = ''
-file_path = ''
-g_model_type = "gpt-3.5-turbo-0613" 
+api_key = os.getenv("OPENAI_API_KEY", "")
+url = os.getenv("OPENAI_API_BASE", "")
+file_path = os.getenv("AUGMENT_FILE_PATH", "")
+g_model_type = os.getenv("OPENAI_MODEL", "gpt-3.5-turbo-0613") 
 # # "claude", "chatglm-6b", "hambuger-13b", "baichuan-7B", "gpt-4", "gpt-4-0613"
 s_model = SentenceTransformer("all-MiniLM-L6-v2")
 
@@ -151,7 +151,7 @@ pickle.dump(augmented_user_profiling_dict, open(file_path + '/augmented_user_pro
 print('Augmentation finished.')  
 user_profiles = [augmented_user_profiling_dict[index] for index in sorted(augmented_user_profiling_dict.keys())]
 user_embedding = s_model.encode(user_profiles)
-pickle.dump(user_embedding, open(file_path + '/augmented_user_init_embedding_correct','wb'))
+pickle.dump(user_embedding, open(file_path + '/augmented_user_init_embedding_final','wb'))
 #     # # make prompting
 #     re = LLM_request(toy_item_attribute, adjacency_list_dict, index, g_model_type, augmented_user_profiling_dict, error_cnt)
 # "claude", "chatglm-6b", "hambuger-13b", "baichuan-7B", "gpt-4", "gpt-4-0613"

@@ -5,9 +5,10 @@ import torch
 import json
 from collections import deque, defaultdict
 import sys
+import os
 
-data_path = ''
-dataset = '/netflix'
+data_path = os.environ.get('DATA_DIR', '')
+dataset = os.environ.get('DATASET_DIR', '/netflix_data')
 topk = 10
 
 def csr_to_adj_list(csr_mat):
